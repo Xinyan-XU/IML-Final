@@ -1,17 +1,12 @@
 import './style.css'
 import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
-import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js'
 import { createRooms } from './addMeshes'
-import { addLight, lightMain, light1, envLight } from './addLights'
+import { addLight, lightMain, lightSub, envLight } from './addLights'
 import { post } from './post'
 import Model from './Model'
-import gsap from 'gsap'
 import {
 	CameraRig,
-	ScrollControls,
 	StoryPointsControls,
-	WheelAdaptor,
 	ThreeDOFControls
 } from 'three-story-controls'
 
@@ -23,25 +18,17 @@ const camera = new THREE.PerspectiveCamera(
 	100
 )
 
-const clock = new THREE.Clock()
-const raycaster = new THREE.Raycaster()
-const pointer = new THREE.Vector3()
-
-const scene = new THREE.Scene()
 const lights = {}
 const models = {}
 const importMesh = {}
+const scene = new THREE.Scene()
+const composer = post(scene, camera, renderer)
 
 let roomMeshes
 let cameraCounter = 0
-
-const container = document.getElementById('page')
-const textElement = document.getElementById('words_explainations')
-let scrollY = 0
 let currentSection = 0
 
-const composer = post(scene, camera, renderer)
-
+//rendering gallery area
 const glitchArea = {
 	minZ: 4.4,
 	maxZ: 4.6,
@@ -84,6 +71,40 @@ const rooms = [
 	},
 ]
 
+//imported models
+function model() {
+	const modelMain = new Model({
+		url: '/model1.gltf',
+		scene: scene,
+		meshes: importMesh,
+		name: 'modelMain',
+		position: new THREE.Vector3(0, 0, 0),
+		visible: true,
+	})
+	modelMain.init()
+
+	models.set1 = new Model({
+		url: '/option1.gltf',
+		scene: scene,
+		meshes: importMesh,
+		name: 'opt1',
+		position: new THREE.Vector3(-0.9, 0.5, 4.6),
+		visible: true,
+	})
+	models.set1.init()
+
+	models.set2 = new Model({
+		url: '/option2.gltf',
+		scene: scene,
+		meshes: importMesh,
+		name: 'opt2',
+		position: new THREE.Vector3(1.5, 0.5, 4.7),
+		visible: false,
+	})
+	models.set2.init()
+}
+
+//camera positions using three-story-controls
 const cameraPoints = [
 	{
 		name: 'view0',
@@ -207,11 +228,6 @@ const cameraPoints = [
 	},
 ]
 
-const listener = new THREE.AudioListener()
-camera.add(listener)
-const sound1 = new THREE.PositionalAudio(listener)
-const audioLoader = new THREE.AudioLoader()
-
 const cameraPositions = cameraPoints.map((item) => {
 	const position = item.cameraPosition
 	const mat = new THREE.Matrix4().lookAt(position, item.lookAtPosition, new THREE.Vector3(0, 1, 0))
@@ -240,11 +256,11 @@ const controls3dof = new ThreeDOFControls(rig, {
 })
 controls3dof.enable()
 
-
+//clickBtn
 const prevBtn = document.getElementById('prev')
 const nextBtn = document.getElementById('next')
-
-nextBtn.addEventListener('click', (event) => {
+const textElement = document.getElementById('words_explainations')
+nextBtn.addEventListener('click', () => {
 	nextBtn.disabled = true
 	setTimeout(() => {
 		nextBtn.disabled = false
@@ -259,8 +275,7 @@ nextBtn.addEventListener('click', (event) => {
 		textElement.innerHTML = cameraPoints[cameraCounter].text
 	}
 })
-
-prevBtn.addEventListener('click', (event) => {
+prevBtn.addEventListener('click', () => {
 	prevBtn.disabled = true
 	setTimeout(() => {
 		prevBtn.disabled = false
@@ -276,6 +291,36 @@ prevBtn.addEventListener('click', (event) => {
 	}
 })
 
+//audio
+const listener = new THREE.AudioListener()
+const sound1 = new THREE.PositionalAudio(listener)
+const audioLoader = new THREE.AudioLoader()
+camera.add(listener)
+function initAudio() {
+	audioLoader.load('/ambience.mp3', function (buffer) {
+		sound1.setBuffer(buffer)
+	})
+}
+
+//scrolling (slightly working)
+const container = document.getElementById('page')
+function initScrolling() {
+	container.addEventListener('scroll', () => {
+		const scrollY = container.scrollTop;
+		const windowHeight = window.innerHeight;
+		const section = Math.round(scrollY / windowHeight);
+
+		if (section !== currentSection) {
+			currentSection = section;
+			const targetScroll = (section * windowHeight) + (windowHeight / 2) - (container.clientHeight / 2);
+			container.scrollTo({
+				top: targetScroll,
+				behavior: 'smooth'
+			});
+		}
+	});
+}
+
 init()
 function init() {
 	renderer.setSize(window.innerWidth, window.innerHeight)
@@ -283,8 +328,8 @@ function init() {
 	mainModel.appendChild(renderer.domElement)
 
 	lights.default = addLight()
+	lights.lightSub = lightSub()
 	lights.lightMain = lightMain()
-	lights.light1 = light1()
 	lights.envLight = envLight()
 
 	scene.add(lights.default)
@@ -304,53 +349,7 @@ function init() {
 	animate()
 }
 
-function model() {
-	const modelMain = new Model({
-		url: '/model1.gltf',
-		scene: scene,
-		meshes: importMesh,
-		name: 'modelMain',
-		position: new THREE.Vector3(0, 0, 0),
-		visible: true,
-	})
-	modelMain.init()
-
-	models.set1 = new Model({
-		url: '/option1.gltf',
-		scene: scene,
-		meshes: importMesh,
-		name: 'opt1',
-		position: new THREE.Vector3(-0.9, 0.5, 4.6),
-		visible: true,
-	})
-	models.set1.init()
-
-	models.set2 = new Model({
-		url: '/option2.gltf',
-		scene: scene,
-		meshes: importMesh,
-		name: 'opt2',
-		position: new THREE.Vector3(1.5, 0.5, 4.7),
-		visible: false,
-	})
-	models.set2.init()
-}
-
-function changeModel() {
-	if (cameraCounter == 7 || cameraCounter == 8) {
-		document.addEventListener('click', () => {
-			importMesh.opt1.visible = !importMesh.opt1.visible
-			importMesh.opt2.visible = !importMesh.opt2.visible
-		})
-	}
-}
-
-function initAudio() {
-	audioLoader.load('/ambience.mp3', function (buffer) {
-		sound1.setBuffer(buffer)
-	})
-}
-
+//check position to manipulate posteffects
 function checkPosition() {
 	if ((cameraPoints[cameraCounter].cameraPosition.x >= glitchArea.minX &&
 		cameraPoints[cameraCounter].cameraPosition.x <= glitchArea.maxX &&
@@ -385,21 +384,14 @@ function checkPosition() {
 	}
 }
 
-function initScrolling() {
-	container.addEventListener('scroll', () => {
-		const scrollY = container.scrollTop;
-		const windowHeight = window.innerHeight;
-		const section = Math.round(scrollY / windowHeight);
-
-		if (section !== currentSection) {
-			currentSection = section;
-			const targetScroll = (section * windowHeight) + (windowHeight / 2) - (container.clientHeight / 2);
-			container.scrollTo({
-				top: targetScroll,
-				behavior: 'smooth'
-			});
-		}
-	});
+//click to manipulate sub-model change
+function changeModel() {
+	if (cameraCounter == 7 || cameraCounter == 8) {
+		document.addEventListener('click', () => {
+			importMesh.opt1.visible = !importMesh.opt1.visible
+			importMesh.opt2.visible = !importMesh.opt2.visible
+		})
+	}
 }
 
 function resize() {
@@ -413,13 +405,10 @@ function resize() {
 
 function animate(t) {
 	requestAnimationFrame(animate)
-
 	checkPosition()
 	changeModel()
-	const time = performance.now()
 
 	// console.log(`Camera Position - x: ${camera.position.x}, y: ${camera.position.y}, z: ${camera.position.z}`)
-	// console.log(cameraPoints[cameraCounter].cameraPosition)
 	// console.log(rig)
 	// console.log(cameraCounter)
 	// console.log(importMesh.opt2.visible)

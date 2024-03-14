@@ -12,7 +12,7 @@ export const lightMain = () => {
 	return light
 }
 
-export const light1 = () => {
+export const lightSub = () => {
 	let light = new DirectionalLight(0xffffff, 3)
 	light.position.set(11.5, 2, -2.5)
 	return light

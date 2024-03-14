@@ -60,7 +60,5 @@ export function post(scene, camera, renderer) {
     const outputPass = new OutputPass()
     composer.addPass(outputPass)
 
-    // return { composer: composer, gtao: gtaoPass }
-
     return { composer: composer, gtao: gtaoPass, grayscale: effectGrayScale, sobel: effectSobel }
 }
